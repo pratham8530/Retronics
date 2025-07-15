@@ -1,6 +1,6 @@
 import { ListingCard } from "@/components/ListingCard";
 import { Button } from "@/components/ui/button";
-import { SortDesc } from "lucide-react";
+import { SortDesc, MessageSquare } from "lucide-react"; // MODIFIED: Imported MessageSquare for the chat icon
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -9,7 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChatWidget } from "@/components/ChatWidget"; // NEW: Import the ChatWidget component
 
+// Interface for a single listing (assuming this is defined as you provided)
 export interface Listing {
   _id: string;
   title: string;
@@ -46,6 +48,10 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // NEW: State variables to manage the chat widget's visibility and context
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatWithSeller, setChatWithSeller] = useState<{ id: string; name: string } | null>(null);
+
   useEffect(() => {
     const fetchBuyerRequests = async () => {
       const token = localStorage.getItem("token");
@@ -69,11 +75,10 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
 
   useEffect(() => {
     const searchQuery = searchParams.get("search") || "";
-    console.log("Search Query:", searchQuery); // Debug log
     const filtered = searchQuery.trim()
       ? listings.filter((listing) =>
-          listing.title.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+        listing.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
       : listings;
     setFilteredListings(filtered);
   }, [listings, searchParams]);
@@ -113,7 +118,6 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
       if (data && data.data) {
         setBuyerRequests((prev) => [...prev, data.data]);
       }
-      
       setIsRequestOpen(false);
     } catch (error) {
       const errorMessage =
@@ -127,6 +131,21 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
 
   const handleViewDetails = (listingId: string) => {
     navigate(`/listings/${listingId}`);
+  };
+
+  // NEW: Function to handle opening the chat widget
+  const handleOpenChat = (listing: Listing) => {
+    if (listing.seller && listing.seller._id) {
+      setChatWithSeller({
+        id: listing.seller._id,
+        name: `${listing.seller.firstName} ${listing.seller.lastName}`,
+      });
+      setIsChatOpen(true);
+      // Close the dialog when opening the chat for a seamless experience
+      setIsRequestOpen(false);
+    } else {
+      alert("Seller information is not available for this listing.");
+    }
   };
 
   return (
@@ -189,6 +208,7 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
         </div>
       </div>
 
+      {/* MODIFIED: The Dialog now includes the chat button */}
       <Dialog open={isRequestOpen} onOpenChange={setIsRequestOpen}>
         <DialogContent>
           <DialogHeader>
@@ -218,7 +238,21 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
                   )}
                 </div>
               </div>
-              <div className="flex justify-end gap-4 mt-6">
+              <div className="flex justify-end items-center gap-4 mt-6">
+                {/* NEW: Chat with Seller button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleOpenChat(selectedListing)}
+                  disabled={!selectedListing.seller || isSubmitting}
+                  title="Chat with Seller"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                </Button>
+
+                {/* This div helps push the other buttons to the right */}
+                <div className="flex-grow"></div>
+
                 <Button
                   variant="outline"
                   onClick={() => setIsRequestOpen(false)}
@@ -234,6 +268,15 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
           )}
         </DialogContent>
       </Dialog>
+
+      {/* NEW: Conditionally render the ChatWidget at the bottom right */}
+      {isChatOpen && chatWithSeller && (
+        <ChatWidget
+          sellerId={chatWithSeller.id}
+          sellerName={chatWithSeller.name}
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
     </div>
   );
 }
