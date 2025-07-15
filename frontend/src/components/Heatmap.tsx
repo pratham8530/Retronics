@@ -18,7 +18,7 @@ const Heatmap = ({
   onRegionClick: (region: any) => void;
 }) => {
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: "AIzaSyDjdQxfohYDiWMhbc8GZ8TR2W4htx4so1w",
     libraries: ["visualization", "geometry"], // Added "geometry" for distance calculations
   });
 
