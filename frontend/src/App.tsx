@@ -11,6 +11,7 @@ import Recycling from "./pages/Recycling";
 import NotFound from "./pages/NotFound";
 import SellerDashboard from "./pages/SellerDashboard"; // Import the SellerDashboard component
 import BuyerDashboard from "./pages/BuyerDashboard"; // Import the BuyerDashboard component
+import { MessagesPage } from "./pages/MessagesPage";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/auth/:mode" element={<Auth />} />
           <Route path="/dashboard/seller" element={<SellerDashboard />} /> {/* Add the SellerDashboard route */}
           <Route path="/dashboard/buyer" element={<BuyerDashboard />} /> {/* Add the BuyerDashboard route */}
+          <Route path="/messages" element={<MessagesPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

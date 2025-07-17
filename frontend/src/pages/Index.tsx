@@ -5,13 +5,23 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { ListingCard } from "@/components/ListingCard";
 import { GradientButton } from "@/components/GradientButton";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Award, BadgeDollarSign, BarChart2, Clock, CreditCard, Laptop, Lock, Monitor, Phone, Recycle, RefreshCw, Shield, ShieldCheck, Smartphone, ThumbsUp, Upload } from "lucide-react";
+import { ArrowRight, Award, BadgeDollarSign, BarChart2, Clock, CreditCard, Laptop, Lock, MessageSquare, Monitor, Phone, Recycle, RefreshCw, Shield, ShieldCheck, Smartphone, ThumbsUp, Upload } from "lucide-react";
 import { fadeIn, fadeUp, slideInRight } from "@/utils/animations";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getAllListings } from "@/services/listingService";
 
 export default function Index() {
   const [featuredListings, setFeaturedListings] = useState([]);
+
+  // NEW: State to track login status and hook for navigation
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
+
+  // NEW: Effect to check for login token when the component mounts
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsLoggedIn(!!token); // !! converts the token string (or null) to a boolean
+  }, []);
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -456,6 +466,16 @@ export default function Index() {
           </div>
         </div>
       </footer>
+      {/* NEW: Floating Action Button for Chat */}
+      {isLoggedIn && (
+        <button
+          onClick={() => navigate('/messages')}
+          className="fixed bottom-8 right-8 z-50 p-4 bg-gradient-to-br from-eco-500 to-tech-500 text-white rounded-full shadow-lg hover:scale-110 transition-transform duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-eco-500"
+          title="Open Messages"
+        >
+          <MessageSquare className="h-6 w-6" />
+        </button>
+      )}
     </div>
   );
 }

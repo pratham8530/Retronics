@@ -1,6 +1,6 @@
 import { ListingCard } from "@/components/ListingCard";
 import { Button } from "@/components/ui/button";
-import { SortDesc, MessageSquare } from "lucide-react"; // MODIFIED: Imported MessageSquare for the chat icon
+import { SortDesc, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -9,9 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChatWidget } from "@/components/ChatWidget"; // NEW: Import the ChatWidget component
+import { ChatWidget } from "@/components/ChatWidget";
+import axios from "axios"; // NEW: Import axios to make API calls
 
-// Interface for a single listing (assuming this is defined as you provided)
+// Interface for a single listing (No changes needed here)
 export interface Listing {
   _id: string;
   title: string;
@@ -48,9 +49,12 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // NEW: State variables to manage the chat widget's visibility and context
+  // State for chat widget (existing)
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatWithSeller, setChatWithSeller] = useState<{ id: string; name: string } | null>(null);
+
+  // NEW: Add a loading state for when we fetch seller info
+  const [isFetchingSeller, setIsFetchingSeller] = useState(false);
 
   useEffect(() => {
     const fetchBuyerRequests = async () => {
@@ -84,6 +88,7 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
   }, [listings, searchParams]);
 
   const handleRequestPurchase = async () => {
+    // No changes needed in this function
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("token");
@@ -133,23 +138,53 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
     navigate(`/listings/${listingId}`);
   };
 
-  // NEW: Function to handle opening the chat widget
-  const handleOpenChat = (listing: Listing) => {
-    if (listing.seller && listing.seller._id) {
-      setChatWithSeller({
-        id: listing.seller._id,
-        name: `${listing.seller.firstName} ${listing.seller.lastName}`,
-      });
-      setIsChatOpen(true);
-      // Close the dialog when opening the chat for a seamless experience
-      setIsRequestOpen(false);
-    } else {
-      alert("Seller information is not available for this listing.");
+  // MODIFIED: This function is now async and calls the new dedicated chat endpoint
+  const handleOpenChat = async (listing: Listing | null) => {
+    if (!listing) return;
+
+    setIsFetchingSeller(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/auth/login");
+        setIsFetchingSeller(false);
+        return;
+      }
+
+      // Call the NEW backend endpoint: /api/chat/seller-info/:listingId
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/api/chat/seller-info/${listing._id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data && response.data.success) {
+        const { sellerId, sellerName } = response.data.data;
+
+        // Set the state needed for the ChatWidget
+        setChatWithSeller({
+          id: sellerId,
+          name: sellerName,
+        });
+
+        // Open the chat window and close the dialog
+        setIsChatOpen(true);
+        setIsRequestOpen(false);
+      } else {
+        throw new Error(response.data.message || "Failed to get seller details.");
+      }
+    } catch (error) {
+      console.error("Failed to open chat:", error);
+      alert("Could not fetch seller details. Please try again.");
+    } finally {
+      setIsFetchingSeller(false);
     }
   };
 
   return (
     <div className="lg:w-3/4">
+      {/* --- No changes needed in the top part of the component --- */}
       <div className="flex justify-between items-center mb-6">
         <p className="text-gray-600">Showing {filteredListings.length} results</p>
         <div className="flex items-center space-x-2">
@@ -160,12 +195,10 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
           </Button>
         </div>
       </div>
-
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredListings.map((listing, index) => {
           const alreadyRequested = buyerRequests.some(
-            (request) =>
-              request.listing && request.listing._id === listing._id
+            (request) => request.listing && request.listing._id === listing._id
           );
           return (
             <ListingCard
@@ -187,28 +220,17 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
           );
         })}
       </div>
-
       <div className="mt-12 flex justify-center">
         <div className="flex space-x-1">
-          <Button variant="outline" size="sm" disabled>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" className="bg-eco-50 border-eco-200">
-            1
-          </Button>
-          <Button variant="outline" size="sm">
-            2
-          </Button>
-          <Button variant="outline" size="sm">
-            3
-          </Button>
-          <Button variant="outline" size="sm">
-            Next
-          </Button>
+          <Button variant="outline" size="sm" disabled>Previous</Button>
+          <Button variant="outline" size="sm" className="bg-eco-50 border-eco-200">1</Button>
+          <Button variant="outline" size="sm">2</Button>
+          <Button variant="outline" size="sm">3</Button>
+          <Button variant="outline" size="sm">Next</Button>
         </div>
       </div>
+      {/* --- End of unchanged section --- */}
 
-      {/* MODIFIED: The Dialog now includes the chat button */}
       <Dialog open={isRequestOpen} onOpenChange={setIsRequestOpen}>
         <DialogContent>
           <DialogHeader>
@@ -217,49 +239,36 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
           {selectedListing && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <img
-                  src={selectedListing.image}
-                  alt={selectedListing.title}
-                  className="w-20 h-20 object-cover rounded-lg"
-                />
+                <img src={selectedListing.image} alt={selectedListing.title} className="w-20 h-20 object-cover rounded-lg" />
                 <div>
                   <h4 className="font-semibold">{selectedListing.title}</h4>
-                  <p className="text-gray-600">
-                    ${selectedListing.price.toLocaleString()}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {selectedListing.category}
-                  </p>
+                  <p className="text-gray-600">${selectedListing.price.toLocaleString()}</p>
+                  <p className="text-sm text-gray-500">{selectedListing.category}</p>
+                  {/* NOTE: This part is now just for display and not functionally required for the chat to work */}
                   {selectedListing.seller && (
-                    <p className="text-sm text-gray-500">
-                      Seller: {selectedListing.seller.firstName}{" "}
-                      {selectedListing.seller.lastName}
-                    </p>
+                    <p className="text-sm text-gray-500">Seller: {selectedListing.seller.firstName} {selectedListing.seller.lastName}</p>
                   )}
                 </div>
               </div>
               <div className="flex justify-end items-center gap-4 mt-6">
-                {/* NEW: Chat with Seller button */}
+                {/* MODIFIED: Chat button now handles loading state */}
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => handleOpenChat(selectedListing)}
-                  disabled={!selectedListing.seller || isSubmitting}
+                  disabled={isFetchingSeller || isSubmitting}
                   title="Chat with Seller"
                 >
-                  <MessageSquare className="h-5 w-5" />
+                  {isFetchingSeller ? (
+                    <div className="animate-spin h-5 w-5 rounded-full border-2 border-primary border-t-transparent" />
+                  ) : (
+                    <MessageSquare className="h-5 w-5" />
+                  )}
                 </Button>
 
-                {/* This div helps push the other buttons to the right */}
                 <div className="flex-grow"></div>
 
-                <Button
-                  variant="outline"
-                  onClick={() => setIsRequestOpen(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setIsRequestOpen(false)} disabled={isSubmitting}>Cancel</Button>
                 <Button onClick={handleRequestPurchase} disabled={isSubmitting}>
                   {isSubmitting ? "Submitting..." : "Confirm Request"}
                 </Button>
@@ -269,11 +278,13 @@ export function MarketplaceListings({ listings = [] }: MarketplaceListingsProps)
         </DialogContent>
       </Dialog>
 
-      {/* NEW: Conditionally render the ChatWidget at the bottom right */}
+      {/* This part is correct and needs no changes */}
       {isChatOpen && chatWithSeller && (
         <ChatWidget
-          sellerId={chatWithSeller.id}
-          sellerName={chatWithSeller.name}
+          // Change sellerId to receiverId
+          receiverId={chatWithSeller.id}
+          // Change sellerName to receiverName
+          receiverName={chatWithSeller.name}
           onClose={() => setIsChatOpen(false)}
         />
       )}
